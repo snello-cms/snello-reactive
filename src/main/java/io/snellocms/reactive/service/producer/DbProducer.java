@@ -1,4 +1,4 @@
-package org.acme;
+package io.snellocms.reactive.service.producer;
 
 import io.quarkus.reactive.datasource.ReactiveDataSource;
 import io.vertx.mutiny.mysqlclient.MySQLPool;

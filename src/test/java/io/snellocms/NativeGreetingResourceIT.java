@@ -1,4 +1,4 @@
-package org.acme;
+package io.snellocms;
 
 import io.quarkus.test.junit.NativeImageTest;
 
