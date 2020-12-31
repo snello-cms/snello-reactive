@@ -5,7 +5,7 @@ import io.snellocms.reactive.management.AppConstants;
 import io.snellocms.reactive.service.ApiService;
 import io.snellocms.reactive.service.documents.DocumentsService;
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.reactive.RestMatrix;
+import org.jboss.resteasy.annotations.providers.multipart.PartType;
 import org.jboss.resteasy.reactive.RestQuery;
 
 import javax.annotation.Nullable;
@@ -13,6 +13,7 @@ import javax.inject.Inject;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
+import java.io.InputStream;
 import java.util.Map;
 
 import static io.snellocms.reactive.management.AppConstants.*;
@@ -64,33 +65,53 @@ public class DocumentsController {
 
     @GET
     @Path(UUID_PATH_PARAM + DOWNLOAD_PATH)
-    public StreamedFile download(@NotNull String uuid) throws Exception {
+    public Response download(@NotNull String uuid) throws Exception {
         Map<String, Object> map = apiService.fetch(null, table, uuid, AppConstants.UUID);
         String path = (String) map.get(DOCUMENT_PATH);
         String mimetype = (String) map.get(DOCUMENT_MIME_TYPE);
-        return documentsService.streamingOutput(path, mimetype);
+        String fileName = (String) map.get(FILE_NAME);
+        return Response.ok(documentsService.streamingOutput(path, mimetype))
+                .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                .build();
+
 
     }
 
     @GET
     @Path(UUID_PATH_PARAM + DOWNLOAD_PATH + "/{name}")
-    public StreamedFile downloadWithName(@NotNull String uuid, @NotNull String name) throws Exception {
+    public Response downloadWithName(@NotNull String uuid, @NotNull String name) throws Exception {
         Map<String, Object> map = apiService.fetch(null, table, uuid, AppConstants.UUID);
         String path = (String) map.get(DOCUMENT_PATH);
         String mimetype = (String) map.get(DOCUMENT_MIME_TYPE);
-        return documentsService.streamingOutput(path, mimetype);
+        String fileName = (String) map.get(FILE_NAME);
+//        return documentsService.streamingOutput(path, mimetype);
+        return Response.ok(documentsService.streamingOutput(path, mimetype))
+                .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                .build();
 
     }
 
 
     @POST
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response post(CompletedFileUpload file,
-                         @Part(TABLE_NAME) String table_name,
-                         @Part(TABLE_KEY) String table_key) {
+    public Response post(
+            @HeaderParam(CONTENT_TYPE)
+                    MediaType mediaType,
+            @FormParam(FILE)
+            @PartType(MediaType.APPLICATION_OCTET_STREAM)
+                    InputStream file,
+            @FormParam(FILE_NAME)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String filename,
+            @FormParam(TABLE_NAME)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String table_name,
+            @FormParam(TABLE_KEY)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String table_key) {
         try {
             String uuid = java.util.UUID.randomUUID().toString();
-            Map<String, Object> map = documentsService.upload(file, uuid, table_name, table_key);
+            Map<String, Object> map = documentsService.upload(file, mediaType, filename, uuid, table_name, table_key);
             map = apiService.create(table, map, AppConstants.UUID);
             return ok(map).build();
         } catch (Exception e) {
@@ -103,12 +124,24 @@ public class DocumentsController {
     @PUT
     @Path(UUID_PATH_PARAM)
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response put(CompletedFileUpload file,
-                        @NotNull String uuid,
-                        @RestMatrix(TABLE_NAME) String table_name,
-                        @RestMatrix(TABLE_KEY) String table_key) {
+    public Response put(
+            @PathParam(UUID) String uuid,
+            @HeaderParam(CONTENT_TYPE)
+                    MediaType mediaType,
+            @FormParam(FILE)
+            @PartType(MediaType.APPLICATION_OCTET_STREAM)
+                    InputStream file,
+            @FormParam(FILE_NAME)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String filename,
+            @FormParam(TABLE_NAME)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String table_name,
+            @FormParam(TABLE_KEY)
+            @PartType(MediaType.TEXT_PLAIN)
+                    String table_key) {
         try {
-            Map<String, Object> map = documentsService.upload(file, uuid, table_name, table_key);
+            Map<String, Object> map = documentsService.upload(file, mediaType, filename, uuid, table_name, table_key);
             map = apiService.merge(table, map, uuid, AppConstants.UUID);
             return ok(map).build();
         } catch (Exception e) {

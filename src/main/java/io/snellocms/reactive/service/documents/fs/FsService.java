@@ -4,14 +4,16 @@ import io.quarkus.runtime.StartupEvent;
 import io.snellocms.reactive.management.AppConstants;
 import io.snellocms.reactive.service.documents.DocumentsService;
 import io.snellocms.reactive.util.ResourceFileUtils;
+import org.apache.commons.io.IOUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.event.ObservesAsync;
 import javax.inject.Singleton;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.StreamingOutput;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -62,18 +64,24 @@ public class FsService implements DocumentsService {
     }
 
     @Override
-    public Map<String, Object> upload(CompletedFileUpload file, String uuid, String table_name, String table_key) throws Exception {
+    public Map<String, Object> upload(InputStream file,
+                                      MediaType mediaType, String filename, String uuid, String table_name, String table_key) throws Exception {
         Path path = verifyPath(table_name);
-        String extension = file.getContentType().get().getExtension();
+        String extension = ResourceFileUtils.getExtension(filename);
         File tempFile = File.createTempFile(uuid, "." + extension, path.toFile());
-        Files.write(tempFile.toPath(), file.getBytes());
+        java.nio.file.Files.copy(
+                file,
+                tempFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING);
+
+        IOUtils.closeQuietly(file);
         Map<String, Object> map = new HashMap<>();
         map.put(AppConstants.UUID, uuid);
         map.put(DOCUMENT_NAME, tempFile.getName());
-        map.put(DOCUMENT_ORIGINAL_NAME, file.getFilename());
+        map.put(DOCUMENT_ORIGINAL_NAME, filename);
         map.put(DOCUMENT_PATH, tempFile.getParentFile().getName() + "/" + tempFile.getName());
-        map.put(DOCUMENT_MIME_TYPE, file.getContentType().get().getName());
-        map.put(SIZE, file.getSize());
+        map.put(DOCUMENT_MIME_TYPE, mediaType.getType());
+        map.put(SIZE, tempFile.getTotalSpace());
         map.put(TABLE_NAME, table_name);
         map.put(TABLE_KEY, table_key);
         return map;
@@ -120,10 +128,19 @@ public class FsService implements DocumentsService {
     }
 
     @Override
-    public StreamedFile streamingOutput(String path, String mediatype) throws Exception {
+    public StreamingOutput streamingOutput(String path, String mediatype) throws Exception {
         String basePath = basePaths.get(0);
-        InputStream input = Files.newInputStream(Paths.get(basePath, path));
-        return new StreamedFile(input, new MediaType(mediatype));
+        StreamingOutput fileStream = new StreamingOutput() {
+            @Override
+            public void write(OutputStream output) throws IOException, WebApplicationException {
+                try {
+                    Files.copy(Paths.get(basePath, path), output);
+                } catch (Exception e) {
+                    logger.error("An exception (NoSuchFile) occured. MESSAGE=" + e.getMessage());
+                }
+            }
+        };
+        return fileStream;
     }
 
 

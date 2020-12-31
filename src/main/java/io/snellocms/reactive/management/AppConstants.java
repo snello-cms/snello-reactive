@@ -60,6 +60,7 @@ public class AppConstants {
     public static final String TABLE_PATH_PARAM = "/{table}";
     public static final String EXTRA_PATH_PARAM = "/{+path}";
     public static final String UUID = "uuid";
+    public static final String CONTENT_TYPE = "Content-Type";
     public static final String UUID_PATH_PARAM = "/{" + UUID + "}";
     public static final String UUID_PATH_PARAM_CREATE = UUID_PATH_PARAM + "/create";
     public static final String UUID_PATH_PARAM_DELETE = UUID_PATH_PARAM + "/delete";
@@ -107,6 +108,8 @@ public class AppConstants {
     public static final String DOCUMENT_MIME_TYPE = "mimetype";
 
     public static final String SIZE = "size";
+    public static final String FILE = "file";
+    public static final String FILE_NAME = "file_name";
     public static final String TABLE_NAME = "table_name";
     public static final String TABLE_KEY = "table_key";
     public static final String CREATED = "created";
